@@ -1,9 +1,9 @@
 // lib/models/log_entry.dart
-import 'package:hive/hive.dart';
+import 'package:hive/hive.dart'; // <-- ¡LA IMPORTACIÓN CLAVE!
 
 part 'log_entry.g.dart';
 
-// ... (DailyMood y LogCause no cambian) ...
+// --- Enums ---
 @HiveType(typeId: 4) 
 enum DailyMood {
   @HiveField(0)
@@ -28,8 +28,6 @@ enum LogCause {
   @HiveField(3)
   noseguro,
 }
-
-// --- ¡CAMBIO AQUÍ! Añadimos 'noseguro' ---
 @HiveType(typeId: 7)
 enum DailyEnergy {
   @HiveField(0)
@@ -38,11 +36,9 @@ enum DailyEnergy {
   media,
   @HiveField(2)
   alta,
-  @HiveField(3) // <-- NUEVO
+  @HiveField(3) // <-- ¡EL CAMPO QUE FALTABA!
   noseguro,
 }
-
-// --- ¡CAMBIO AQUÍ! Añadimos 'noseguro' ---
 @HiveType(typeId: 8)
 enum SleepQuality {
   @HiveField(0)
@@ -51,29 +47,28 @@ enum SleepQuality {
   regular,
   @HiveField(2)
   buena,
-  @HiveField(3) // <-- NUEVO
+  @HiveField(3) // <-- ¡EL CAMPO QUE FALTABA!
   noseguro,
 }
 
+// --- Modelo Principal ---
 @HiveType(typeId: 6) 
 class LogEntry extends HiveObject { 
   @HiveField(0)
-  DateTime date; // <-- Cambiado a no-final para poder editar
-
+  DateTime date;
   @HiveField(1)
-  DailyMood mood; // <-- Cambiado a no-final
-
+  DailyMood mood;
   @HiveField(2)
-  LogCause cause; // <-- Cambiado a no-final
-  
+  LogCause cause;
   @HiveField(3)
-  String note; // <-- Cambiado a no-final
-
+  String note;
   @HiveField(4)
-  DailyEnergy energy; // <-- Cambiado a no-final
-
+  DailyEnergy energy;
   @HiveField(5)
-  SleepQuality sleep; // <-- Cambiado a no-final
+  SleepQuality sleep;
+
+  @HiveField(6) // <-- ¡EL CAMPO QUE FALTABA!
+  int cycleDay; 
 
   LogEntry({
     required this.date,
@@ -82,5 +77,6 @@ class LogEntry extends HiveObject {
     required this.note,
     required this.energy,
     required this.sleep,
+    required this.cycleDay, // <-- ¡EL CAMPO QUE FALTABA!
   });
 }

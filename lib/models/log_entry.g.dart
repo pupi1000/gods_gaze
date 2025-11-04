@@ -23,13 +23,14 @@ class LogEntryAdapter extends TypeAdapter<LogEntry> {
       note: fields[3] as String,
       energy: fields[4] as DailyEnergy,
       sleep: fields[5] as SleepQuality,
+      cycleDay: fields[6] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, LogEntry obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.date)
       ..writeByte(1)
@@ -41,7 +42,9 @@ class LogEntryAdapter extends TypeAdapter<LogEntry> {
       ..writeByte(4)
       ..write(obj.energy)
       ..writeByte(5)
-      ..write(obj.sleep);
+      ..write(obj.sleep)
+      ..writeByte(6)
+      ..write(obj.cycleDay);
   }
 
   @override

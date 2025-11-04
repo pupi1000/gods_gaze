@@ -1,47 +1,60 @@
 // lib/services/cycle_service.dart
+import 'dart:math'; 
+import './suggestion_library.dart';
+// Importaciones relativas
 import '../models/app_settings.dart';
 import '../models/log_entry.dart';
 import '../models/user_profile.dart';
+import '../models/pattern_info.dart'; 
 
-// ... (SmartSuggestion class no cambia) ...
 class SmartSuggestion {
   final int currentDay;
   final String phaseName;
-  final String biologyInsight; 
-  final String profileInsight; 
-  final String actionSuggestion;
+  final String biologyInsight;    
+  final String profileInsight;    
+  final String realityInsight;    
+  final String actionSuggestion;  
+
   SmartSuggestion({
     required this.currentDay,
     required this.phaseName,
     required this.biologyInsight,
     required this.profileInsight,
+    required this.realityInsight, 
     required this.actionSuggestion,
   });
 }
 
 class CycleService {
+
+  final SuggestionLibrary _lib = SuggestionLibrary();
+
   SmartSuggestion getSmartSuggestion(
     AppSettings settings,
     UserProfile profile,
     List<LogEntry> logHistory,
+    DateTime forDate,
   ) {
-    // ... (Paso 1: Cálculo Biológico no cambia) ...
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+    // === PASO 1: CÁLCULO BIOLÓGICO (Pilar 1) ===
+    final date = DateTime(forDate.year, forDate.month, forDate.day);
     final lastPeriod = DateTime(settings.lastPeriodDate.year,
         settings.lastPeriodDate.month, settings.lastPeriodDate.day);
-    final int currentDay = today.difference(lastPeriod).inDays + 1;
+    final int currentDay = date.difference(lastPeriod).inDays + 1;
     final int ovulationDay = settings.cycleDuration - 14;
+    
     String currentPhaseName;
     String biologyInsight;
-    bool isHighEnergyPhase;
-    bool isPredictedLowEnergy = false; // <-- NUEVO Flag
+    bool isPredictedLowEnergy = false; 
+    
+    // --- ¡¡ARREGLO #2!! ---
+    // 'isHighEnergyPhase' se define aquí para que exista en todo el "scope"
+    bool isHighEnergyPhase; 
 
      if (currentDay <= 5) {
       currentPhaseName = "Fase 1: Menstruación";
       biologyInsight = "Las hormonas están bajas. La energía física y emocional está en su punto más bajo. Es común sentir cansancio y cólicos.";
       isHighEnergyPhase = false;
-      isPredictedLowEnergy = true; // <-- Flag
+      isPredictedLowEnergy = true; 
     } else if (currentDay > 5 && currentDay < ovulationDay) {
       currentPhaseName = "Fase 2: Folicular";
       biologyInsight = "El estrógeno está subiendo. Esto trae un aumento de energía, buen humor, confianza y creatividad.";
@@ -65,109 +78,92 @@ class CycleService {
            biologyInsight = "¡Alerta de SPM! Las hormonas caen. Es común sentir cansancio, irritabilidad, antojos y sensibilidad emocional.";
         }
         isHighEnergyPhase = false;
-        isPredictedLowEnergy = true; // <-- Flag
+        isPredictedLowEnergy = true;
       }
     } else {
       currentPhaseName = "Fuera de Rango";
       biologyInsight = "El ciclo calculado ya ha terminado. Es hora de actualizar la fecha de inicio del último período en 'Ajustes' para obtener nuevas predicciones.";
-      isHighEnergyPhase = false;
+      isHighEnergyPhase = false; // Añadido para que la variable esté inicializada
       return SmartSuggestion(
           currentDay: currentDay,
           phaseName: currentPhaseName,
           biologyInsight: biologyInsight,
           profileInsight: "Actualiza los datos del ciclo.",
+          realityInsight: "N/A",
           actionSuggestion: "Ve a Ajustes (⚙️) y actualiza la fecha de inicio del último período.");
     }
 
-    // ... (Paso 2: Generar Sugerencia Base no cambia) ...
-    String profileInsight = "Tu Manual de Usuario dice...";
-    String actionSuggestion = "Acción Sugerida...";
-    if (isHighEnergyPhase) {
-      profileInsight += "\n✓ Predicción: Energía biológica ALTA.";
-      actionSuggestion = "Predicción: ¡Gran día para conectar! ";
-      switch (profile.primaryLoveLanguage) {
-        case LoveLanguage.time:
-          actionSuggestion += "Su lenguaje principal es 'Tiempo de Calidad'. Propon un plan sin distracciones.";
-          profileInsight += "\n✓ Valora el 'Tiempo de Calidad'.";
-          break;
-        case LoveLanguage.words:
-           actionSuggestion += "Su lenguaje principal es 'Palabras de Afirmación'. Dile lo que admiras de ella.";
-           profileInsight += "\n✓ Valora las 'Palabras de Afirmación'.";
-          break;
-        case LoveLanguage.service:
-           actionSuggestion += "Su lenguaje principal es 'Actos de Servicio'. Ofrécete a ayudarla con una tarea.";
-           profileInsight += "\n✓ Valora los 'Actos de Servicio'.";
-          break;
-        default:
-          actionSuggestion += "Aprovecha la buena energía para socializar, tener una cita divertida o bromear.";
-          profileInsight += "\n✓ (Sin Lenguaje de Amor definido)";
-      }
-    } else {
-      profileInsight += "\n✓ Predicción: Energía biológica BAJA.";
-      actionSuggestion = "Predicción: Día de baja energía. Paciencia y apoyo. ";
-      switch (profile.stressResponse) {
-        case StressResponse.space:
-          actionSuggestion += "Tu manual dice que prefiere 'Espacio'. Dale su tiempo a solas, no la presiones.";
-          profileInsight += "\n✓ Prefiere 'Espacio' bajo estrés.";
-          break;
-        case StressResponse.talk:
-          actionSuggestion += "Tu manual dice que prefiere 'Hablarlo'. Ofrécele tu escucha activa, sin juicios.";
-          profileInsight += "\n✓ Prefiere 'Hablarlo' bajo estrés.";
-          break;
-        case StressResponse.distraction:
-           actionSuggestion += "Tu manual dice que prefiere 'Distracción'. Intenta animarla con un 'Botón Mágico' o una broma ligera.";
-           profileInsight += "\n✓ Prefiere 'Distracciones' bajo estrés.";
-          break;
-        default:
-          actionSuggestion += "Ofrécele confort y no tomes la irritabilidad como algo personal.";
-          profileInsight += "\n✓ (Sin Respuesta al Estrés definida)";
-      }
-    }
+    // === PASO 2: CONSTRUIR INSIGHTS (Pilar 3 y 2) ===
+    String profileInsight = "Tu Manual de Usuario dice:\n"
+                           "✓ Valora el '${profile.primaryLoveLanguage.name}'.\n"
+                           "✓ Prefiere '${profile.stressResponse.name}' bajo estrés.";
     
-    // ... (Paso 3: Lógica de sobrescribir con Pilar 2 no cambia) ...
-    final logsDeHoy = _findLogsForDay(logHistory, today);
-    bool isRealLowEnergy = false; // <-- Nuevo Flag de Realidad
+    String realityInsight = "Aún no hay registros para este día.";
+    String actionSuggestion = "";
+    bool isRealLowEnergy = false; 
+
+    // --- ¡¡ARREGLO #3!! ---
+    // 'logsDeHoy' se define aquí para que exista en todo el "scope"
+    final logsDeHoy = _findLogsForDay(logHistory, date);
+    final pattern = _findPatternForDay(logHistory, currentDay);
 
     if (logsDeHoy.isNotEmpty) {
-      biologyInsight = "¡Anulado por ${logsDeHoy.length} registro(s) de hoy!";
-      profileInsight = "Hoy registraste lo siguiente:\n";
-      actionSuggestion = "¡Realidad mata predicción! ";
+      // --- Lógica de Pilar 2 (Realidad) ---
       final ultimoLog = logsDeHoy.first; 
-      
+      realityInsight = "¡Dato en tiempo real! Hoy registraste:\n";
       for (var log in logsDeHoy) {
-         profileInsight += "\n• '${log.mood.name}' (Energía: ${log.energy.name}, Sueño: ${log.sleep.name}). Causa: '${log.cause.name}'.";
-         if (log.note.isNotEmpty) profileInsight += " Nota: '${log.note}'";
+         realityInsight += "\n• '${log.mood.name}' (Energía: ${log.energy.name}, Sueño: ${log.sleep.name}). Causa: '${log.cause.name}'.";
+         if (log.note.isNotEmpty) realityInsight += " Nota: '${log.note}'";
       }
       
       if (ultimoLog.mood == DailyMood.cansada || ultimoLog.mood == DailyMood.irritable || ultimoLog.mood == DailyMood.triste) {
-        isRealLowEnergy = true; // <-- Flag
+        isRealLowEnergy = true;
       }
       
-      if (ultimoLog.cause == LogCause.vida) {
-        actionSuggestion += "El factor principal parece ser 'Vida'. Enfócate en lo que registraste";
-        if (ultimoLog.note.isNotEmpty) actionSuggestion += ": ${ultimoLog.note}.";
-      } else {
-         actionSuggestion += "Tu registro confirma que el 'Ciclo' está afectando. ";
-         switch (profile.stressResponse) {
-            case StressResponse.space: actionSuggestion += "Recuerda, ella prefiere 'Espacio'."; break;
-            case StressResponse.talk: actionSuggestion += "Recuerda, ella prefiere 'Hablarlo'."; break;
-            case StressResponse.distraction: actionSuggestion += "Recuerda, ella prefiere una 'Distracción'."; break;
-            default: actionSuggestion += "Apóyala con confort.";
-         }
-      }
+      actionSuggestion = _lib.getRealTimeLogSuggestion(ultimoLog, profile);
+
+    } else if (pattern != null) {
+      // --- Lógica de Pilar 2 (IA de Patrones) ---
+      isRealLowEnergy = (pattern.mostCommonMood == DailyMood.triste || 
+                         pattern.mostCommonMood == DailyMood.irritable || 
+                         pattern.mostCommonMood == DailyMood.cansada);
+
+      realityInsight = "¡Patrón Detectado! (Pilar 2):\n"
+                       "Has registrado este día del ciclo ${pattern.logCount} veces.\n"
+                       "El patrón más común es: '${pattern.mostCommonMood.name}'.";
+      
+      actionSuggestion = _lib.getPatternSuggestion(pattern, profile);
+
     } else {
-      final logDeAyer = _findLogsForDay(logHistory, today.subtract(const Duration(days: 1)));
+      // --- No hay datos del Pilar 2 ---
+      realityInsight = "No hay registros o patrones para este día. Usando predicción biológica.";
+      
+      // --- ¡¡ARREGLO #4!! ---
+      // Esta lógica se mueve DENTRO del 'else'
+      if (isHighEnergyPhase) {
+        actionSuggestion = _lib.getHighEnergySuggestion(profile.primaryLoveLanguage);
+      } else {
+        actionSuggestion = _lib.getLowEnergySuggestion(profile.stressResponse, profile.magicButtonText);
+      }
+      
+      // Si el día de AYER fue malo, añadimos una advertencia
+      final logDeAyer = _findLogsForDay(logHistory, date.subtract(const Duration(days: 1)));
       if (logDeAyer.isNotEmpty && (logDeAyer.first.mood == DailyMood.irritable || logDeAyer.first.mood == DailyMood.triste)) {
         actionSuggestion = "¡OJO! " + actionSuggestion;
         profileInsight += "\n\n⚠️ ADVERTENCIA: Ayer registraste '${logDeAyer.first.mood.name}'. Aunque la predicción de hoy sea buena, ve con calma.";
-        isRealLowEnergy = true; // <-- Flag
       }
     }
 
-    // --- ¡¡PASO 4: CONECTAR LOS BOTONES MÁGICOS!! ---
-    if( (isPredictedLowEnergy || isRealLowEnergy) && profile.magicButtonText.isNotEmpty) {
-      // Si es un día malo (predicho O real) Y has guardado un botón mágico...
-      actionSuggestion += "\n\n💡 **Botón Mágico:** Recuerda que guardaste esto como algo que suele animarla: '${profile.magicButtonText}'.";
+    // === PASO 3: LÓGICA FINAL (Botones Mágicos, etc.) ===
+    
+    // --- ¡¡ARREGLO #5!! ---
+    // Esta lógica se movió aquí, pero ahora llama a la función PÚBLICA
+    if( (isPredictedLowEnergy || isRealLowEnergy) && 
+        logsDeHoy.isEmpty && // Solo si no hay un log de hoy (porque el log ya lo añade)
+        pattern == null &&   // Solo si no hay un patrón (porque el patrón ya lo añade)
+        profile.magicButtonText.isNotEmpty) 
+    {
+      actionSuggestion += _lib.getMagicButtonSuggestion(profile.magicButtonText);
     }
 
     return SmartSuggestion(
@@ -175,11 +171,12 @@ class CycleService {
       phaseName: currentPhaseName,
       biologyInsight: biologyInsight,
       profileInsight: profileInsight,
+      realityInsight: realityInsight,
       actionSuggestion: actionSuggestion,
     );
   }
 
-  // ... (Función _findLogsForDay no cambia) ...
+  // --- Función de Ayuda para buscar logs de UN día ---
   List<LogEntry> _findLogsForDay(List<LogEntry> logHistory, DateTime day) {
     return logHistory.where(
       (log) =>
@@ -187,5 +184,25 @@ class CycleService {
           log.date.month == day.month &&
           log.date.year == day.year,
     ).toList();
+  }
+  
+  // --- Función de "IA" ---
+  PatternInfo? _findPatternForDay(List<LogEntry> logHistory, int cycleDay) {
+    final logsForThisDay = logHistory.where((log) => log.cycleDay == cycleDay).toList();
+    if (logsForThisDay.length < 2) { 
+      return null;
+    }
+    Map<DailyMood, int> moodCounts = {};
+    for (var log in logsForThisDay) {
+      moodCounts[log.mood] = (moodCounts[log.mood] ?? 0) + 1;
+    }
+    final sortedMoods = moodCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    
+    final mostCommonMood = sortedMoods.first.key;
+    return PatternInfo(
+      logCount: logsForThisDay.length,
+      mostCommonMood: mostCommonMood,
+    );
   }
 }

@@ -1,16 +1,22 @@
 // lib/screens/log_entry_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart'; // <-- Importación para DateFormat
+
 // Importaciones relativas
 import '../models/log_entry.dart';
 import '../services/storage_service.dart';
 
 class LogEntryScreen extends StatefulWidget {
   final LogEntry? logToEdit;
+  final int? currentCycleDay; 
+  final DateTime? selectedDate; // <-- ¡NUEVO! Acepta la fecha
   
   const LogEntryScreen({
     Key? key,
     this.logToEdit,
+    this.currentCycleDay,
+    this.selectedDate, // <-- ¡NUEVO!
   }) : super(key: key);
 
   @override
@@ -24,6 +30,7 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
   late DailyEnergy _selectedEnergy;
   late SleepQuality _selectedSleep;
   late TextEditingController _noteController;
+  late int _cycleDay;
 
   bool get isEditing => widget.logToEdit != null;
 
@@ -40,17 +47,23 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
       _selectedEnergy = log.energy;
       _selectedSleep = log.sleep;
       _noteController.text = log.note;
+      _cycleDay = log.cycleDay;
     } else {
-      _selectedDate = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+      // --- ¡ARREGLO DEL BUG DE FECHA! ---
+      // Usa la fecha seleccionada que pasamos, O (si no hay) usa hoy.
+      final now = DateTime.now();
+      _selectedDate = widget.selectedDate != null 
+          ? DateTime(widget.selectedDate!.year, widget.selectedDate!.month, widget.selectedDate!.day)
+          : DateTime(now.year, now.month, now.day);
+      // ---------------------------------
       _selectedMood = null;
       _selectedCause = LogCause.noseguro;
       _selectedEnergy = DailyEnergy.noseguro; 
       _selectedSleep = SleepQuality.noseguro;
+      _cycleDay = widget.currentCycleDay ?? 1;
     }
   }
 
-  // --- ¡ARREGLO #2 AQUÍ! ---
-  // 1. Hacemos la función 'async'
   Future<void> _saveLog() async {
     if (_selectedMood == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -59,7 +72,6 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
       return;
     }
 
-    // Usamos 'context.read' porque estamos DENTRO de una función/callback
     final storage = context.read<StorageService>();
 
     if (isEditing) {
@@ -70,8 +82,8 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
       log.energy = _selectedEnergy;
       log.sleep = _selectedSleep;
       log.note = _noteController.text;
+      log.cycleDay = _cycleDay;
       
-      // 2. AÑADIMOS 'await' para esperar a que termine de guardar
       await log.save(); 
       
       ScaffoldMessenger.of(context).showSnackBar(
@@ -80,15 +92,15 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
 
     } else {
       final newLog = LogEntry(
-        date: _selectedDate,
+        date: _selectedDate, // <-- ¡Ahora usa la fecha correcta!
         mood: _selectedMood!,
         cause: _selectedCause,
         note: _noteController.text,
         energy: _selectedEnergy,
         sleep: _selectedSleep,
+        cycleDay: _cycleDay,
       );
       
-      // 3. AÑADIMOS 'await' aquí también
       await storage.saveLogEntry(newLog);
       
       ScaffoldMessenger.of(context).showSnackBar(
@@ -96,19 +108,15 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
       );
     }
     
-    // 4. Esta línea AHORA SÍ espera a que el guardado termine
-    // (Asegurándonos de que el widget no esté montado si el usuario cerró la app mientras guardaba)
     if (mounted) {
       Navigator.of(context).pop();
     }
   }
-  // --- FIN DEL ARREGLO #2 ---
-
 
   String _moodToText(DailyMood mood) {
     switch (mood) {
       case DailyMood.feliz: return 'Feliz / Con energía';
-      case DailyMood.calmada: return 'Calmada / Normal';
+      case DailyMood.calmada: return 'Calmada / Normal'; // <-- Corregido
       case DailyMood.triste: return 'Triste / Sensible';
       case DailyMood.irritable: return 'Irritable / Molesta';
       case DailyMood.cansada: return 'Cansada / Baja energía';
@@ -119,14 +127,26 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEditing ? 'Editar Registro' : 'Registrar Estado de Hoy'),
+        title: Text(isEditing ? 'Editar Registro' : 'Registrar Estado (Día $_cycleDay)'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // --- 1. SUEÑO ---
+            // --- Mostramos la fecha que estamos editando ---
+            if (!isEditing) // Solo muestra esto si es un registro nuevo
+              Center(
+                child: Text(
+                  DateFormat.yMMMMd('es_ES').format(_selectedDate),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary
+                  ),
+                ),
+              ),
+            const SizedBox(height: 16),
+
             Text('1. ¿Cómo fue la calidad de sueño anoche?',
                 style: Theme.of(context).textTheme.titleMedium),
             SegmentedButton<SleepQuality>(
@@ -144,17 +164,12 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
               },
             ),
             const SizedBox(height: 24),
-
-            // --- 2. ENERGÍA ---
              Text('2. ¿Cuál es su nivel de energía hoy?',
                 style: Theme.of(context).textTheme.titleMedium),
             SegmentedButton<DailyEnergy>(
               segments: const [
                 ButtonSegment(value: DailyEnergy.baja, label: Text('Baja'), icon: Icon(Icons.battery_alert)),
-                // --- ¡¡ARREGLO #1 AQUÍ!! ---
-                // Cambiado de 'DailyFullEnergy.media' a 'DailyEnergy.media'
                 ButtonSegment(value: DailyEnergy.media, label: Text('Media'), icon: Icon(Icons.battery_std)),
-                // ---------------------------------
                 ButtonSegment(value: DailyEnergy.alta, label: Text('Alta'), icon: Icon(Icons.battery_full)),
                 ButtonSegment(value: DailyEnergy.noseguro, label: Text('No Sé'), icon: Icon(Icons.help_outline)),
               ],
@@ -166,8 +181,6 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
               },
             ),
             const SizedBox(height: 24),
-
-            // --- 3. HUMOR ---
             Text('3. ¿Cuál es su estado de ánimo principal?',
                 style: Theme.of(context).textTheme.titleMedium),
             Wrap(
@@ -188,8 +201,6 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
               }).toList(),
             ),
             const SizedBox(height: 24),
-
-            // --- 4. CAUSA ---
             Text('4. ¿Cuál crees que es la causa principal?',
                 style: Theme.of(context).textTheme.titleMedium),
             SegmentedButton<LogCause>(
@@ -206,8 +217,6 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
               },
             ),
             const SizedBox(height: 24),
-
-            // --- 5. NOTA ---
             Text('5. Nota (Contexto de "Vida")',
                 style: Theme.of(context).textTheme.titleMedium),
             const Text('Ej: "Tuvo un mal día en el trabajo", "Durmió mal"',
@@ -222,8 +231,6 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
               maxLines: 3,
             ),
             const SizedBox(height: 32),
-
-            // --- BOTÓN DE GUARDAR ---
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
